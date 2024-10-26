@@ -25,7 +25,7 @@ class SwiftHelloWorld < Formula
     run [opt_bin/"swift-hello-world"]
     run_type :interval
     interval 5
-    log_path var/"log/swift-hello-world.log"
-    error_log_path var/"log/swift-hello-world.error.log"
+    log_path var/"log/swift-hello-world.stdout.log"
+    error_log_path var/"log/swift-hello-world.stderr.log"
   end
 end
