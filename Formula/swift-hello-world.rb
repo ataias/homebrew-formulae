@@ -8,7 +8,13 @@ class SwiftHelloWorld < Formula
   sha256 "3bad845ebe42a95d221e49d993cb186e1076811c01f2c71fdc55ff57fe4a2c5d"
   license ""
 
-  depends_on xcode: ["16.0", :build]
+  on_macos do
+    depends_on xcode: ["16.0", :build]
+  end
+
+  on_linux do
+    depends_on "swift" => ["6.0", :build]
+  end
 
   def install
     system "make", "install", "prefix=#{prefix}"
