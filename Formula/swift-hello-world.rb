@@ -1,6 +1,3 @@
-# Documentation: https://docs.brew.sh/Formula-Cookbook
-#                https://rubydoc.brew.sh/Formula
-# PLEASE REMOVE ALL GENERATED COMMENTS BEFORE SUBMITTING YOUR PULL REQUEST!
 class SwiftHelloWorld < Formula
   desc "A hello world program written in Swift"
   homepage "https://github.com/ataias/swift-hello-world"
