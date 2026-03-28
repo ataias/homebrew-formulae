@@ -1,0 +1,37 @@
+name: Auto-update packages
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  pijul:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Check for new version
+        id: check
+        run: |
+          CURRENT=$(brew info --json=v1 ataias/formulae/pijul | jq -r '.[0].versions.stable')
+          LATEST=$(curl -s https://crates.io/api/v1/crates/pijul | jq -r '.crate.max_version')
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump formula PR
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+        run: |
+          LATEST="${{ steps.check.outputs.latest }}"
+          brew bump-formula-pr \
+            --no-browse \
+            --no-fork \
+            --version="$LATEST" \
+            --url="https://static.crates.io/crates/pijul/pijul-${LATEST}.crate" \
+            ataias/formulae/pijul

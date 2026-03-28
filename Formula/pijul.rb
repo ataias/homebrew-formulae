@@ -5,6 +5,17 @@ class Pijul < Formula
   sha256 "8a4fc27aa81ee061310d57fce2df9cc45f3149ddb00bdfab2b816beb0359b13d"
   license "GPL-2.0-or-later"
 
+  livecheck do
+    url :stable
+    strategy :crate do |json|
+      json["versions"]&.filter_map do |version|
+        next if version["yanked"]
+
+        version["num"]
+      end
+    end
+  end
+
   depends_on "pkgconf" => :build
   depends_on "rust" => :build
   depends_on "libsodium"
