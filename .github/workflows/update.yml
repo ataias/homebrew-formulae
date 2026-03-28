@@ -35,3 +35,146 @@ jobs:
             --version="$LATEST" \
             --url="https://static.crates.io/crates/pijul/pijul-${LATEST}.crate" \
             ataias/formulae/pijul
+
+  zig-master-check:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.check.outputs.needs_update }}
+      version: ${{ steps.zig-info.outputs.version }}
+      date: ${{ steps.zig-info.outputs.date }}
+      aarch64_sha: ${{ steps.zig-info.outputs.aarch64_sha }}
+      x86_64_sha: ${{ steps.zig-info.outputs.x86_64_sha }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch Zig master info
+        id: zig-info
+        run: |
+          curl -sL https://ziglang.org/download/index.json | jq -r '.master' > /tmp/zig-master.json
+          echo "version=$(jq -r '.version' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "date=$(jq -r '.date' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "aarch64_sha=$(jq -r '."aarch64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "x86_64_sha=$(jq -r '."x86_64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check if update needed
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NEW_VERSION="${{ steps.zig-info.outputs.version }}"
+          CURRENT_VERSION=$(grep 'version "' Formula/zig-master.rb | head -1 | sed 's/.*version "//;s/".*//')
+          RELEASE_EXISTS=$(gh release view zig-master-latest --json tagName 2>/dev/null && echo true || echo false)
+          if [ "$CURRENT_VERSION" != "$NEW_VERSION" ] || [ "$RELEASE_EXISTS" = "false" ]; then
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  zig-master-test:
+    needs: zig-master-check
+    if: needs.zig-master-check.outputs.needs_update == 'true'
+    runs-on: macos-26
+    steps:
+      - name: Download and extract Zig
+        run: |
+          VERSION="${{ needs.zig-master-check.outputs.version }}"
+          curl -L -o zig.tar.xz "https://ziglang.org/builds/zig-aarch64-macos-${VERSION}.tar.xz"
+          echo "${{ needs.zig-master-check.outputs.aarch64_sha }}  zig.tar.xz" | shasum -a 256 -c
+          tar xf zig.tar.xz
+          echo "$(pwd)/zig-aarch64-macos-${VERSION}" >> "$GITHUB_PATH"
+
+      - name: Test zig init, build, and test
+        run: |
+          set -euxo pipefail
+          mkdir test-project && cd test-project
+          zig init
+          zig build --summary all
+          zig build run
+          zig build test --summary all
+
+  zig-master-update:
+    needs: [zig-master-check, zig-master-test]
+    if: needs.zig-master-check.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download macOS binaries
+        run: |
+          VERSION="${{ needs.zig-master-check.outputs.version }}"
+          mkdir -p /tmp/zig-downloads
+          curl -L -o "/tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz" \
+            "https://ziglang.org/builds/zig-aarch64-macos-${VERSION}.tar.xz"
+          curl -L -o "/tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz" \
+            "https://ziglang.org/builds/zig-x86_64-macos-${VERSION}.tar.xz"
+          echo "${{ needs.zig-master-check.outputs.aarch64_sha }}  /tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz" | sha256sum -c
+          echo "${{ needs.zig-master-check.outputs.x86_64_sha }}  /tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz" | sha256sum -c
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.zig-master-check.outputs.version }}"
+          DATE="${{ needs.zig-master-check.outputs.date }}"
+          gh release delete zig-master-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create zig-master-latest \
+            /tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz \
+            /tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz \
+            --title "Zig Master ${VERSION} (${DATE})" \
+            --notes "Automated mirror of Zig nightly build.
+
+          Version: ${VERSION}
+          Date: ${DATE}
+          Source: https://ziglang.org/download/" \
+            --latest=false
+
+      - name: Update formula
+        run: |
+          VERSION="${{ needs.zig-master-check.outputs.version }}"
+          AARCH64_SHA="${{ needs.zig-master-check.outputs.aarch64_sha }}"
+          X86_64_SHA="${{ needs.zig-master-check.outputs.x86_64_sha }}"
+          RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest"
+          cat > Formula/zig-master.rb << FORMULA_EOF
+          class ZigMaster < Formula
+            desc "Zig programming language (master/nightly build)"
+            homepage "https://ziglang.org/"
+            license "MIT"
+            version "${VERSION}"
+
+            conflicts_with "zig", because: "both install a \`zig\` binary"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${RELEASE_BASE}/zig-aarch64-macos-${VERSION}.tar.xz"
+                sha256 "${AARCH64_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "${RELEASE_BASE}/zig-x86_64-macos-${VERSION}.tar.xz"
+                sha256 "${X86_64_SHA}"
+              end
+            end
+
+            def install
+              bin.install "zig"
+              lib.install Dir["lib/*"]
+            end
+
+            test do
+              system bin/"zig", "init"
+              system bin/"zig", "build", "--summary", "all"
+              system bin/"zig", "build", "run"
+              system bin/"zig", "build", "test", "--summary", "all"
+            end
+          end
+          FORMULA_EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/zig-master.rb
+          git diff --cached --quiet && exit 0
+          git commit -m "zig-master: update to ${{ needs.zig-master-check.outputs.version }}"
+          git push
