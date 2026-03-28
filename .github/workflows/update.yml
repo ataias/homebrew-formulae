@@ -178,3 +178,176 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "zig-master: update to ${{ needs.zig-master-check.outputs.version }}"
           git push
+
+  zls-master-check:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_update: ${{ steps.check.outputs.needs_update }}
+      zls_commit: ${{ steps.zls-info.outputs.zls_commit }}
+      zls_commit_short: ${{ steps.zls-info.outputs.zls_commit_short }}
+      zig_version: ${{ steps.zls-info.outputs.zig_version }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Fetch ZLS and Zig info
+        id: zls-info
+        run: |
+          ZLS_COMMIT=$(curl -sL "https://api.github.com/repos/zigtools/zls/commits/master" | jq -r '.sha')
+          ZLS_COMMIT_SHORT=$(echo "$ZLS_COMMIT" | cut -c1-10)
+          echo "zls_commit=$ZLS_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "zls_commit_short=$ZLS_COMMIT_SHORT" >> "$GITHUB_OUTPUT"
+          ZIG_VERSION=$(grep 'version "' Formula/zig-master.rb | head -1 | sed 's/.*version "//;s/".*//')
+          echo "zig_version=$ZIG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          ZLS_COMMIT="${{ steps.zls-info.outputs.zls_commit_short }}"
+          ZIG_VERSION="${{ steps.zls-info.outputs.zig_version }}"
+          CURRENT_ZLS_COMMIT=$(grep '# zls_commit:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zls_commit: //' || echo "")
+          CURRENT_ZIG_VERSION=$(grep '# zig_version:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zig_version: //' || echo "")
+          if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ] || [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  zls-master-build:
+    needs: zls-master-check
+    if: needs.zls-master-check.outputs.needs_update == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    outputs:
+      zls_version: ${{ steps.build.outputs.zls_version }}
+      aarch64_sha: ${{ steps.package.outputs.aarch64_sha }}
+      x86_64_sha: ${{ steps.package.outputs.x86_64_sha }}
+    steps:
+      - name: Download Zig
+        run: |
+          ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
+          curl -L -o zig.tar.xz "https://ziglang.org/builds/zig-aarch64-macos-${ZIG_VERSION}.tar.xz"
+          tar xf zig.tar.xz
+          echo "$(pwd)/zig-aarch64-macos-${ZIG_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Clone ZLS
+        run: |
+          git clone https://github.com/zigtools/zls.git
+          cd zls
+          git checkout ${{ needs.zls-master-check.outputs.zls_commit }}
+
+      - name: Build ZLS
+        id: build
+        run: |
+          cd zls
+          zig build -Doptimize=ReleaseSafe
+          ZLS_VERSION=$(./zig-out/bin/zls --version)
+          echo "zls_version=$ZLS_VERSION" >> "$GITHUB_OUTPUT"
+          cp zig-out/bin/zls ../zls-aarch64
+          zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-macos
+          cp zig-out/bin/zls ../zls-x86_64
+
+      - name: Package binaries
+        id: package
+        run: |
+          mkdir zls-aarch64-macos && cp zls-aarch64 zls-aarch64-macos/zls
+          tar cJf zls-aarch64-macos.tar.xz zls-aarch64-macos/
+          AARCH64_SHA=$(shasum -a 256 zls-aarch64-macos.tar.xz | awk '{print $1}')
+          echo "aarch64_sha=$AARCH64_SHA" >> "$GITHUB_OUTPUT"
+          mkdir zls-x86_64-macos && cp zls-x86_64 zls-x86_64-macos/zls
+          tar cJf zls-x86_64-macos.tar.xz zls-x86_64-macos/
+          X86_64_SHA=$(shasum -a 256 zls-x86_64-macos.tar.xz | awk '{print $1}')
+          echo "x86_64_sha=$X86_64_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zls-macos-binaries
+          path: |
+            zls-aarch64-macos.tar.xz
+            zls-x86_64-macos.tar.xz
+
+  zls-master-update:
+    needs: [zls-master-check, zls-master-build]
+    if: needs.zls-master-check.outputs.needs_update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: zls-macos-binaries
+          path: /tmp/zls-downloads
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZLS_VERSION="${{ needs.zls-master-build.outputs.zls_version }}"
+          ZLS_COMMIT="${{ needs.zls-master-check.outputs.zls_commit_short }}"
+          ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
+          gh release delete zls-master-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create zls-master-latest \
+            /tmp/zls-downloads/zls-aarch64-macos.tar.xz \
+            /tmp/zls-downloads/zls-x86_64-macos.tar.xz \
+            --title "ZLS Master ${ZLS_VERSION} (${ZLS_COMMIT})" \
+            --notes "Automated build of ZLS from master.
+
+          ZLS Version: ${ZLS_VERSION}
+          ZLS Commit: ${ZLS_COMMIT}
+          Built with Zig: ${ZIG_VERSION}
+          Source: https://github.com/zigtools/zls" \
+            --latest=false
+
+      - name: Update formula
+        run: |
+          ZLS_VERSION="${{ needs.zls-master-build.outputs.zls_version }}"
+          ZLS_COMMIT="${{ needs.zls-master-check.outputs.zls_commit_short }}"
+          ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
+          AARCH64_SHA="${{ needs.zls-master-build.outputs.aarch64_sha }}"
+          X86_64_SHA="${{ needs.zls-master-build.outputs.x86_64_sha }}"
+          RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest"
+          cat > Formula/zls-master.rb << FORMULA_EOF
+          class ZlsMaster < Formula
+            desc "Zig Language Server (master/nightly build)"
+            homepage "https://github.com/zigtools/zls"
+            license "MIT"
+            version "${ZLS_VERSION}"
+            # zls_commit: ${ZLS_COMMIT}
+            # zig_version: ${ZIG_VERSION}
+
+            depends_on "ataias/formulae/zig-master"
+            conflicts_with "zls", because: "both install a \`zls\` binary"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${RELEASE_BASE}/zls-aarch64-macos.tar.xz"
+                sha256 "${AARCH64_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "${RELEASE_BASE}/zls-x86_64-macos.tar.xz"
+                sha256 "${X86_64_SHA}"
+              end
+            end
+
+            def install
+              bin.install "zls"
+            end
+
+            test do
+              system bin/"zls", "--version"
+            end
+          end
+          FORMULA_EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/zls-master.rb
+          git diff --cached --quiet && exit 0
+          git commit -m "zls-master: update to ${{ needs.zls-master-build.outputs.zls_version }}"
+          git pull --rebase
+          git push
