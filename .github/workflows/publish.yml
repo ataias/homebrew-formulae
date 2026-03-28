@@ -5,6 +5,11 @@ on:
     types:
       - labeled
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
 jobs:
   pr-pull:
     if: contains(github.event.pull_request.labels.*.name, 'pr-pull')
