@@ -140,8 +140,8 @@ jobs:
           class ZigMaster < Formula
             desc "Zig programming language (master/nightly build)"
             homepage "https://ziglang.org/"
-            license "MIT"
             version "${VERSION}"
+            license "MIT"
 
             conflicts_with "zig", because: "both install a \`zig\` binary"
 
@@ -313,8 +313,8 @@ jobs:
           class ZlsMaster < Formula
             desc "Zig Language Server (master/nightly build)"
             homepage "https://github.com/zigtools/zls"
-            license "MIT"
             version "${ZLS_VERSION}"
+            license "MIT"
             # zls_commit: ${ZLS_COMMIT}
             # zig_version: ${ZIG_VERSION}
 

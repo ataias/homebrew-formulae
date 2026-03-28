@@ -1,8 +1,8 @@
 class ZigMaster < Formula
   desc "Zig programming language (master/nightly build)"
   homepage "https://ziglang.org/"
-  license "MIT"
   version "0.16.0-dev.3013+abd131e33"
+  license "MIT"
 
   conflicts_with "zig", because: "both install a `zig` binary"
 
