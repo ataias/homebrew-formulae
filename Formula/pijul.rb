@@ -16,6 +16,12 @@ class Pijul < Formula
     end
   end
 
+  bottle do
+    root_url "https://github.com/ataias/homebrew-formulae/releases/download/pijul-1.0.0-beta.11"
+    rebuild 1
+    sha256 cellar: :any, arm64_sequoia: "ef44cd04be50a87d1ce5b583c85a5abd70cbbf66f488b0741f0254e40ee4fca9"
+  end
+
   depends_on "pkgconf" => :build
   depends_on "rust" => :build
   depends_on "libsodium"
