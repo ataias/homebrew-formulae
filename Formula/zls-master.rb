@@ -3,6 +3,7 @@ class ZlsMaster < Formula
   homepage "https://github.com/zigtools/zls"
   version "0.16.0-dev.295+0bb4338e"
   license "MIT"
+  revision 1
   # zls_commit: 0bb4338e15
   # zig_version: 0.16.0-dev.3028+a85495ca2
 

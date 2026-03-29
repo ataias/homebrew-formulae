@@ -389,8 +389,8 @@ jobs:
           class ZlsMaster < Formula
             desc "Zig Language Server (master/nightly build)"
             homepage "https://github.com/zigtools/zls"
-            version "${ZLS_VERSION}"${REVISION_LINE}
-            license "MIT"
+            version "${ZLS_VERSION}"
+            license "MIT"${REVISION_LINE}
             # zls_commit: ${ZLS_COMMIT}
             # zig_version: ${ZIG_VERSION}
 
