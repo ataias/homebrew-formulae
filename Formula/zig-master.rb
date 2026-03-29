@@ -15,6 +15,7 @@ class ZigMaster < Formula
     end
   end
 
+
   conflicts_with "zig", because: "both install a `zig` binary"
 
   def install

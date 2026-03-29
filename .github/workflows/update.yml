@@ -42,8 +42,10 @@ jobs:
       needs_update: ${{ steps.check.outputs.needs_update }}
       version: ${{ steps.zig-info.outputs.version }}
       date: ${{ steps.zig-info.outputs.date }}
-      aarch64_sha: ${{ steps.zig-info.outputs.aarch64_sha }}
-      x86_64_sha: ${{ steps.zig-info.outputs.x86_64_sha }}
+      aarch64_macos_sha: ${{ steps.zig-info.outputs.aarch64_macos_sha }}
+      x86_64_macos_sha: ${{ steps.zig-info.outputs.x86_64_macos_sha }}
+      aarch64_linux_sha: ${{ steps.zig-info.outputs.aarch64_linux_sha }}
+      x86_64_linux_sha: ${{ steps.zig-info.outputs.x86_64_linux_sha }}
     steps:
       - uses: actions/checkout@v6
 
@@ -53,8 +55,10 @@ jobs:
           curl -sL https://ziglang.org/download/index.json | jq -r '.master' > /tmp/zig-master.json
           echo "version=$(jq -r '.version' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
           echo "date=$(jq -r '.date' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "aarch64_sha=$(jq -r '."aarch64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "x86_64_sha=$(jq -r '."x86_64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "aarch64_macos_sha=$(jq -r '."aarch64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "x86_64_macos_sha=$(jq -r '."x86_64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "aarch64_linux_sha=$(jq -r '."aarch64-linux".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          echo "x86_64_linux_sha=$(jq -r '."x86_64-linux".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
 
       - name: Check if update needed
         id: check
@@ -73,15 +77,25 @@ jobs:
   zig-master-test:
     needs: zig-master-check
     if: needs.zig-master-check.outputs.needs_update == 'true'
-    runs-on: macos-26
+    strategy:
+      matrix:
+        include:
+          - os: macos-26
+            arch: aarch64
+            platform: macos
+          - os: ubuntu-latest
+            arch: x86_64
+            platform: linux
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Download and extract Zig
         run: |
           VERSION="${{ needs.zig-master-check.outputs.version }}"
-          curl -L -o zig.tar.xz "https://ziglang.org/builds/zig-aarch64-macos-${VERSION}.tar.xz"
-          echo "${{ needs.zig-master-check.outputs.aarch64_sha }}  zig.tar.xz" | shasum -a 256 -c
+          curl -L -o zig.tar.xz "https://ziglang.org/builds/zig-${{ matrix.arch }}-${{ matrix.platform }}-${VERSION}.tar.xz"
+          EXPECTED="${{ needs.zig-master-check.outputs[format('{0}_{1}_sha', matrix.arch, matrix.platform)] }}"
+          echo "${EXPECTED}  zig.tar.xz" | sha256sum -c 2>/dev/null || echo "${EXPECTED}  zig.tar.xz" | shasum -a 256 -c
           tar xf zig.tar.xz
-          echo "$(pwd)/zig-aarch64-macos-${VERSION}" >> "$GITHUB_PATH"
+          echo "$(pwd)/zig-${{ matrix.arch }}-${{ matrix.platform }}-${VERSION}" >> "$GITHUB_PATH"
 
       - name: Test zig init, build, and test
         run: |
@@ -101,16 +115,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download macOS binaries
+      - name: Download binaries
         run: |
           VERSION="${{ needs.zig-master-check.outputs.version }}"
           mkdir -p /tmp/zig-downloads
-          curl -L -o "/tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz" \
-            "https://ziglang.org/builds/zig-aarch64-macos-${VERSION}.tar.xz"
-          curl -L -o "/tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz" \
-            "https://ziglang.org/builds/zig-x86_64-macos-${VERSION}.tar.xz"
-          echo "${{ needs.zig-master-check.outputs.aarch64_sha }}  /tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz" | sha256sum -c
-          echo "${{ needs.zig-master-check.outputs.x86_64_sha }}  /tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz" | sha256sum -c
+          for arch_platform in aarch64-macos x86_64-macos aarch64-linux x86_64-linux; do
+            curl -L -o "/tmp/zig-downloads/zig-${arch_platform}-${VERSION}.tar.xz" \
+              "https://ziglang.org/builds/zig-${arch_platform}-${VERSION}.tar.xz"
+          done
+          echo "${{ needs.zig-master-check.outputs.aarch64_macos_sha }}  /tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz" | sha256sum -c
+          echo "${{ needs.zig-master-check.outputs.x86_64_macos_sha }}  /tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz" | sha256sum -c
+          echo "${{ needs.zig-master-check.outputs.aarch64_linux_sha }}  /tmp/zig-downloads/zig-aarch64-linux-${VERSION}.tar.xz" | sha256sum -c
+          echo "${{ needs.zig-master-check.outputs.x86_64_linux_sha }}  /tmp/zig-downloads/zig-x86_64-linux-${VERSION}.tar.xz" | sha256sum -c
 
       - name: Create GitHub Release
         env:
@@ -122,6 +138,8 @@ jobs:
           gh release create zig-master-latest \
             /tmp/zig-downloads/zig-aarch64-macos-${VERSION}.tar.xz \
             /tmp/zig-downloads/zig-x86_64-macos-${VERSION}.tar.xz \
+            /tmp/zig-downloads/zig-aarch64-linux-${VERSION}.tar.xz \
+            /tmp/zig-downloads/zig-x86_64-linux-${VERSION}.tar.xz \
             --title "Zig Master ${VERSION} (${DATE})" \
             --notes "Automated mirror of Zig nightly build.
 
@@ -133,8 +151,10 @@ jobs:
       - name: Update formula
         run: |
           VERSION="${{ needs.zig-master-check.outputs.version }}"
-          AARCH64_SHA="${{ needs.zig-master-check.outputs.aarch64_sha }}"
-          X86_64_SHA="${{ needs.zig-master-check.outputs.x86_64_sha }}"
+          AARCH64_MACOS_SHA="${{ needs.zig-master-check.outputs.aarch64_macos_sha }}"
+          X86_64_MACOS_SHA="${{ needs.zig-master-check.outputs.x86_64_macos_sha }}"
+          AARCH64_LINUX_SHA="${{ needs.zig-master-check.outputs.aarch64_linux_sha }}"
+          X86_64_LINUX_SHA="${{ needs.zig-master-check.outputs.x86_64_linux_sha }}"
           RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest"
           cat > Formula/zig-master.rb << FORMULA_EOF
           class ZigMaster < Formula
@@ -146,11 +166,22 @@ jobs:
             on_macos do
               if Hardware::CPU.arm?
                 url "${RELEASE_BASE}/zig-aarch64-macos-${VERSION}.tar.xz"
-                sha256 "${AARCH64_SHA}"
+                sha256 "${AARCH64_MACOS_SHA}"
               end
               if Hardware::CPU.intel?
                 url "${RELEASE_BASE}/zig-x86_64-macos-${VERSION}.tar.xz"
-                sha256 "${X86_64_SHA}"
+                sha256 "${X86_64_MACOS_SHA}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "${RELEASE_BASE}/zig-aarch64-linux-${VERSION}.tar.xz"
+                sha256 "${AARCH64_LINUX_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "${RELEASE_BASE}/zig-x86_64-linux-${VERSION}.tar.xz"
+                sha256 "${X86_64_LINUX_SHA}"
               end
             end
 
@@ -219,8 +250,10 @@ jobs:
     timeout-minutes: 30
     outputs:
       zls_version: ${{ steps.build.outputs.zls_version }}
-      aarch64_sha: ${{ steps.package.outputs.aarch64_sha }}
-      x86_64_sha: ${{ steps.package.outputs.x86_64_sha }}
+      aarch64_macos_sha: ${{ steps.package.outputs.aarch64_macos_sha }}
+      x86_64_macos_sha: ${{ steps.package.outputs.x86_64_macos_sha }}
+      aarch64_linux_sha: ${{ steps.package.outputs.aarch64_linux_sha }}
+      x86_64_linux_sha: ${{ steps.package.outputs.x86_64_linux_sha }}
     steps:
       - name: Download Zig
         run: |
@@ -242,29 +275,35 @@ jobs:
           zig build -Doptimize=ReleaseSafe
           ZLS_VERSION=$(./zig-out/bin/zls --version)
           echo "zls_version=$ZLS_VERSION" >> "$GITHUB_OUTPUT"
-          cp zig-out/bin/zls ../zls-aarch64
+          cp zig-out/bin/zls ../zls-aarch64-macos
           zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-macos
-          cp zig-out/bin/zls ../zls-x86_64
+          cp zig-out/bin/zls ../zls-x86_64-macos
+          zig build -Doptimize=ReleaseSafe -Dtarget=aarch64-linux
+          cp zig-out/bin/zls ../zls-aarch64-linux
+          zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-linux
+          cp zig-out/bin/zls ../zls-x86_64-linux
 
       - name: Package binaries
         id: package
         run: |
-          mkdir zls-aarch64-macos && cp zls-aarch64 zls-aarch64-macos/zls
-          tar cJf zls-aarch64-macos.tar.xz zls-aarch64-macos/
-          AARCH64_SHA=$(shasum -a 256 zls-aarch64-macos.tar.xz | awk '{print $1}')
-          echo "aarch64_sha=$AARCH64_SHA" >> "$GITHUB_OUTPUT"
-          mkdir zls-x86_64-macos && cp zls-x86_64 zls-x86_64-macos/zls
-          tar cJf zls-x86_64-macos.tar.xz zls-x86_64-macos/
-          X86_64_SHA=$(shasum -a 256 zls-x86_64-macos.tar.xz | awk '{print $1}')
-          echo "x86_64_sha=$X86_64_SHA" >> "$GITHUB_OUTPUT"
+          for arch_platform in aarch64-macos x86_64-macos aarch64-linux x86_64-linux; do
+            mkdir "zls-${arch_platform}"
+            cp "zls-${arch_platform}" "zls-${arch_platform}/zls"
+            tar cJf "zls-${arch_platform}.tar.xz" "zls-${arch_platform}/"
+            SHA=$(shasum -a 256 "zls-${arch_platform}.tar.xz" | awk '{print $1}')
+            OUTPUT_NAME=$(echo "${arch_platform}" | tr '-' '_')
+            echo "${OUTPUT_NAME}_sha=$SHA" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zls-macos-binaries
+          name: zls-binaries
           path: |
             zls-aarch64-macos.tar.xz
             zls-x86_64-macos.tar.xz
+            zls-aarch64-linux.tar.xz
+            zls-x86_64-linux.tar.xz
 
   zls-master-update:
     needs: [zls-master-check, zls-master-build]
@@ -278,7 +317,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: zls-macos-binaries
+          name: zls-binaries
           path: /tmp/zls-downloads
 
       - name: Create GitHub Release
@@ -292,6 +331,8 @@ jobs:
           gh release create zls-master-latest \
             /tmp/zls-downloads/zls-aarch64-macos.tar.xz \
             /tmp/zls-downloads/zls-x86_64-macos.tar.xz \
+            /tmp/zls-downloads/zls-aarch64-linux.tar.xz \
+            /tmp/zls-downloads/zls-x86_64-linux.tar.xz \
             --title "ZLS Master ${ZLS_VERSION} (${ZLS_COMMIT})" \
             --notes "Automated build of ZLS from master.
 
@@ -306,8 +347,10 @@ jobs:
           ZLS_VERSION="${{ needs.zls-master-build.outputs.zls_version }}"
           ZLS_COMMIT="${{ needs.zls-master-check.outputs.zls_commit_short }}"
           ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
-          AARCH64_SHA="${{ needs.zls-master-build.outputs.aarch64_sha }}"
-          X86_64_SHA="${{ needs.zls-master-build.outputs.x86_64_sha }}"
+          AARCH64_MACOS_SHA="${{ needs.zls-master-build.outputs.aarch64_macos_sha }}"
+          X86_64_MACOS_SHA="${{ needs.zls-master-build.outputs.x86_64_macos_sha }}"
+          AARCH64_LINUX_SHA="${{ needs.zls-master-build.outputs.aarch64_linux_sha }}"
+          X86_64_LINUX_SHA="${{ needs.zls-master-build.outputs.x86_64_linux_sha }}"
           RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest"
           cat > Formula/zls-master.rb << FORMULA_EOF
           class ZlsMaster < Formula
@@ -323,11 +366,22 @@ jobs:
             on_macos do
               if Hardware::CPU.arm?
                 url "${RELEASE_BASE}/zls-aarch64-macos.tar.xz"
-                sha256 "${AARCH64_SHA}"
+                sha256 "${AARCH64_MACOS_SHA}"
               end
               if Hardware::CPU.intel?
                 url "${RELEASE_BASE}/zls-x86_64-macos.tar.xz"
-                sha256 "${X86_64_SHA}"
+                sha256 "${X86_64_MACOS_SHA}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "${RELEASE_BASE}/zls-aarch64-linux.tar.xz"
+                sha256 "${AARCH64_LINUX_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "${RELEASE_BASE}/zls-x86_64-linux.tar.xz"
+                sha256 "${X86_64_LINUX_SHA}"
               end
             end
 
