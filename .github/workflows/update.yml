@@ -213,32 +213,32 @@ jobs:
           git push
 
   zls-master-check:
+    needs: [zig-master-check, zig-master-update]
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     outputs:
       needs_update: ${{ steps.check.outputs.needs_update }}
       zls_commit: ${{ steps.zls-info.outputs.zls_commit }}
       zls_commit_short: ${{ steps.zls-info.outputs.zls_commit_short }}
-      zig_version: ${{ steps.zls-info.outputs.zig_version }}
+      zig_version: ${{ needs.zig-master-check.outputs.version }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Fetch ZLS and Zig info
+      - name: Fetch ZLS info
         id: zls-info
         run: |
           ZLS_COMMIT=$(curl -sL "https://api.github.com/repos/zigtools/zls/commits/master" | jq -r '.sha')
           ZLS_COMMIT_SHORT=$(echo "$ZLS_COMMIT" | cut -c1-10)
-          ZIG_VERSION=$(grep 'version "' Formula/zig-master.rb | head -1 | sed 's/.*version "//;s/".*//')
           {
             echo "zls_commit=$ZLS_COMMIT"
             echo "zls_commit_short=$ZLS_COMMIT_SHORT"
-            echo "zig_version=$ZIG_VERSION"
           } >> "$GITHUB_OUTPUT"
 
       - name: Check if update needed
         id: check
         run: |
           ZLS_COMMIT="${{ steps.zls-info.outputs.zls_commit_short }}"
-          ZIG_VERSION="${{ steps.zls-info.outputs.zig_version }}"
+          ZIG_VERSION="${{ needs.zig-master-check.outputs.version }}"
           CURRENT_ZLS_COMMIT=$(grep '# zls_commit:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zls_commit: //' || echo "")
           CURRENT_ZIG_VERSION=$(grep '# zig_version:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zig_version: //' || echo "")
           if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ] || [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
