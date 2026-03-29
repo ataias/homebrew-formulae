@@ -16,11 +16,17 @@ jobs:
         id: check
         run: |
           CURRENT=$(brew info --json=v1 ataias/formulae/pijul | jq -r '.[0].versions.stable')
-          LATEST=$(curl -s https://crates.io/api/v1/crates/pijul | jq -r '.crate.max_version')
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          LATEST=$(curl -sf https://crates.io/api/v1/crates/pijul | jq -r '.crate.newest_version')
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+            echo "::error::Failed to fetch latest pijul version from crates.io"
+            exit 1
+          fi
           if [ "$CURRENT" != "$LATEST" ]; then
-            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "current=$CURRENT"
+              echo "latest=$LATEST"
+              echo "needs_update=true"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Bump formula PR
