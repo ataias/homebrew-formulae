@@ -143,8 +143,6 @@ jobs:
             version "${VERSION}"
             license "MIT"
 
-            conflicts_with "zig", because: "both install a \`zig\` binary"
-
             on_macos do
               if Hardware::CPU.arm?
                 url "${RELEASE_BASE}/zig-aarch64-macos-${VERSION}.tar.xz"
@@ -155,6 +153,8 @@ jobs:
                 sha256 "${X86_64_SHA}"
               end
             end
+
+            conflicts_with "zig", because: "both install a \`zig\` binary"
 
             def install
               bin.install "zig"
@@ -319,7 +319,6 @@ jobs:
             # zig_version: ${ZIG_VERSION}
 
             depends_on "ataias/formulae/zig-master"
-            conflicts_with "zls", because: "both install a \`zls\` binary"
 
             on_macos do
               if Hardware::CPU.arm?
@@ -331,6 +330,8 @@ jobs:
                 sha256 "${X86_64_SHA}"
               end
             end
+
+            conflicts_with "zls", because: "both install a \`zls\` binary"
 
             def install
               bin.install "zls"

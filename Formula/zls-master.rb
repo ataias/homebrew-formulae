@@ -1,13 +1,12 @@
 class ZlsMaster < Formula
   desc "Zig Language Server (master/nightly build)"
   homepage "https://github.com/zigtools/zls"
-  license "MIT"
   version "0.16.0-dev.295+0bb4338e"
+  license "MIT"
   # zls_commit: 0bb4338e15
   # zig_version: 0.16.0-dev.3013+abd131e33
 
   depends_on "ataias/formulae/zig-master"
-  conflicts_with "zls", because: "both install a `zls` binary"
 
   on_macos do
     if Hardware::CPU.arm?
@@ -19,6 +18,8 @@ class ZlsMaster < Formula
       sha256 "0d1975cb8368469397143ba0fe4fe643b9be7da1a0fe9e1576988471dac14d45"
     end
   end
+
+  conflicts_with "zls", because: "both install a `zls` binary"
 
   def install
     bin.install "zls"

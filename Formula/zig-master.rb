@@ -4,8 +4,6 @@ class ZigMaster < Formula
   version "0.16.0-dev.3013+abd131e33"
   license "MIT"
 
-  conflicts_with "zig", because: "both install a `zig` binary"
-
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-aarch64-macos-0.16.0-dev.3013+abd131e33.tar.xz"
@@ -16,6 +14,8 @@ class ZigMaster < Formula
       sha256 "7835cfe2096e7fbf31d318b87e56d2a17e1b2e67e1e2eec812fdf936ab28df66"
     end
   end
+
+  conflicts_with "zig", because: "both install a `zig` binary"
 
   def install
     bin.install "zig"
