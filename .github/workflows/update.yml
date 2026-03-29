@@ -243,6 +243,7 @@ jobs:
       - name: Check if update needed
         id: check
         run: |
+          set -x
           ZLS_COMMIT="${{ steps.zls-info.outputs.zls_commit_short }}"
           ZIG_VERSION="${{ needs.zig-master-check.outputs.version }}"
           CURRENT_ZLS_COMMIT=$(grep '# zls_commit:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zls_commit: //' || echo "")
@@ -251,13 +252,17 @@ jobs:
           echo "ZIG_VERSION=$ZIG_VERSION CURRENT_ZIG_VERSION=$CURRENT_ZIG_VERSION"
           if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ] || [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
             echo "needs_update=true" >> "$GITHUB_OUTPUT"
+            echo ">> Setting needs_update=true"
           else
             echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            echo ">> Setting needs_update=false"
           fi
+          echo ">> GITHUB_OUTPUT contents:"
+          cat "$GITHUB_OUTPUT"
 
   zls-master-build:
     needs: zls-master-check
-    if: needs.zls-master-check.outputs.needs_update == 'true'
+    if: ${{ !cancelled() && needs.zls-master-check.outputs.needs_update == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
     outputs:
@@ -270,7 +275,8 @@ jobs:
       - name: Download Zig
         run: |
           ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
-          curl -L -o zig.tar.xz "https://ziglang.org/builds/zig-aarch64-macos-${ZIG_VERSION}.tar.xz"
+          RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest"
+          curl -L -o zig.tar.xz "${RELEASE_BASE}/zig-aarch64-macos-${ZIG_VERSION}.tar.xz"
           tar xf zig.tar.xz
           echo "$(pwd)/zig-aarch64-macos-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
@@ -284,23 +290,24 @@ jobs:
         id: build
         run: |
           cd zls
+          mkdir -p ../bin
           zig build -Doptimize=ReleaseSafe
           ZLS_VERSION=$(./zig-out/bin/zls --version)
           echo "zls_version=$ZLS_VERSION" >> "$GITHUB_OUTPUT"
-          cp zig-out/bin/zls ../zls-aarch64-macos
+          cp zig-out/bin/zls ../bin/zls-aarch64-macos
           zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-macos
-          cp zig-out/bin/zls ../zls-x86_64-macos
+          cp zig-out/bin/zls ../bin/zls-x86_64-macos
           zig build -Doptimize=ReleaseSafe -Dtarget=aarch64-linux
-          cp zig-out/bin/zls ../zls-aarch64-linux
+          cp zig-out/bin/zls ../bin/zls-aarch64-linux
           zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-linux
-          cp zig-out/bin/zls ../zls-x86_64-linux
+          cp zig-out/bin/zls ../bin/zls-x86_64-linux
 
       - name: Package binaries
         id: package
         run: |
           for arch_platform in aarch64-macos x86_64-macos aarch64-linux x86_64-linux; do
             mkdir "zls-${arch_platform}"
-            cp "zls-${arch_platform}" "zls-${arch_platform}/zls"
+            cp "bin/zls-${arch_platform}" "zls-${arch_platform}/zls"
             tar cJf "zls-${arch_platform}.tar.xz" "zls-${arch_platform}/"
             SHA=$(shasum -a 256 "zls-${arch_platform}.tar.xz" | awk '{print $1}')
             OUTPUT_NAME=$(echo "${arch_platform}" | tr '-' '_')
@@ -319,7 +326,7 @@ jobs:
 
   zls-master-update:
     needs: [zls-master-check, zls-master-build]
-    if: needs.zls-master-check.outputs.needs_update == 'true'
+    if: ${{ !failure() && !cancelled() && needs.zls-master-check.outputs.needs_update == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
