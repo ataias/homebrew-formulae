@@ -224,6 +224,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       needs_update: ${{ steps.check.outputs.needs_update }}
+      revision: ${{ steps.check.outputs.revision }}
       zls_commit: ${{ steps.zls-info.outputs.zls_commit }}
       zls_commit_short: ${{ steps.zls-info.outputs.zls_commit_short }}
       zig_version: ${{ needs.zig-master-check.outputs.version }}
@@ -243,22 +244,30 @@ jobs:
       - name: Check if update needed
         id: check
         run: |
-          set -x
           ZLS_COMMIT="${{ steps.zls-info.outputs.zls_commit_short }}"
           ZIG_VERSION="${{ needs.zig-master-check.outputs.version }}"
           CURRENT_ZLS_COMMIT=$(grep '# zls_commit:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zls_commit: //' || echo "")
           CURRENT_ZIG_VERSION=$(grep '# zig_version:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zig_version: //' || echo "")
+          CURRENT_REVISION=$(grep 'revision ' Formula/zls-master.rb 2>/dev/null | sed 's/.*revision //' || echo "0")
           echo "ZLS_COMMIT=$ZLS_COMMIT CURRENT_ZLS_COMMIT=$CURRENT_ZLS_COMMIT"
           echo "ZIG_VERSION=$ZIG_VERSION CURRENT_ZIG_VERSION=$CURRENT_ZIG_VERSION"
-          if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ] || [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
-            echo "needs_update=true" >> "$GITHUB_OUTPUT"
-            echo ">> Setting needs_update=true"
+          echo "CURRENT_REVISION=$CURRENT_REVISION"
+          if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ]; then
+            echo "ZLS commit changed, revision resets to 0"
+            {
+              echo "needs_update=true"
+              echo "revision=0"
+            } >> "$GITHUB_OUTPUT"
+          elif [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
+            NEW_REVISION=$((CURRENT_REVISION + 1))
+            echo "Zig version changed, bumping revision to $NEW_REVISION"
+            {
+              echo "needs_update=true"
+              echo "revision=$NEW_REVISION"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "needs_update=false" >> "$GITHUB_OUTPUT"
-            echo ">> Setting needs_update=false"
           fi
-          echo ">> GITHUB_OUTPUT contents:"
-          cat "$GITHUB_OUTPUT"
 
   zls-master-build:
     needs: zls-master-check
@@ -366,16 +375,21 @@ jobs:
           ZLS_VERSION="${{ needs.zls-master-build.outputs.zls_version }}"
           ZLS_COMMIT="${{ needs.zls-master-check.outputs.zls_commit_short }}"
           ZIG_VERSION="${{ needs.zls-master-check.outputs.zig_version }}"
+          REVISION="${{ needs.zls-master-check.outputs.revision }}"
           AARCH64_MACOS_SHA="${{ needs.zls-master-build.outputs.aarch64_macos_sha }}"
           X86_64_MACOS_SHA="${{ needs.zls-master-build.outputs.x86_64_macos_sha }}"
           AARCH64_LINUX_SHA="${{ needs.zls-master-build.outputs.aarch64_linux_sha }}"
           X86_64_LINUX_SHA="${{ needs.zls-master-build.outputs.x86_64_linux_sha }}"
           RELEASE_BASE="https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest"
+          REVISION_LINE=""
+          if [ "$REVISION" -gt 0 ] 2>/dev/null; then
+            REVISION_LINE=$'\n  revision '"${REVISION}"
+          fi
           cat > Formula/zls-master.rb << FORMULA_EOF
           class ZlsMaster < Formula
             desc "Zig Language Server (master/nightly build)"
             homepage "https://github.com/zigtools/zls"
-            version "${ZLS_VERSION}"
+            version "${ZLS_VERSION}"${REVISION_LINE}
             license "MIT"
             # zls_commit: ${ZLS_COMMIT}
             # zig_version: ${ZIG_VERSION}
