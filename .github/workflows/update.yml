@@ -247,6 +247,8 @@ jobs:
           ZIG_VERSION="${{ needs.zig-master-check.outputs.version }}"
           CURRENT_ZLS_COMMIT=$(grep '# zls_commit:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zls_commit: //' || echo "")
           CURRENT_ZIG_VERSION=$(grep '# zig_version:' Formula/zls-master.rb 2>/dev/null | sed 's/.*# zig_version: //' || echo "")
+          echo "ZLS_COMMIT=$ZLS_COMMIT CURRENT_ZLS_COMMIT=$CURRENT_ZLS_COMMIT"
+          echo "ZIG_VERSION=$ZIG_VERSION CURRENT_ZIG_VERSION=$CURRENT_ZIG_VERSION"
           if [ "$CURRENT_ZLS_COMMIT" != "$ZLS_COMMIT" ] || [ "$CURRENT_ZIG_VERSION" != "$ZIG_VERSION" ]; then
             echo "needs_update=true" >> "$GITHUB_OUTPUT"
           else
