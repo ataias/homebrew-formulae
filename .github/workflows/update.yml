@@ -53,12 +53,14 @@ jobs:
         id: zig-info
         run: |
           curl -sL https://ziglang.org/download/index.json | jq -r '.master' > /tmp/zig-master.json
-          echo "version=$(jq -r '.version' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "date=$(jq -r '.date' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "aarch64_macos_sha=$(jq -r '."aarch64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "x86_64_macos_sha=$(jq -r '."x86_64-macos".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "aarch64_linux_sha=$(jq -r '."aarch64-linux".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
-          echo "x86_64_linux_sha=$(jq -r '."x86_64-linux".shasum' /tmp/zig-master.json)" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$(jq -r '.version' /tmp/zig-master.json)"
+            echo "date=$(jq -r '.date' /tmp/zig-master.json)"
+            echo "aarch64_macos_sha=$(jq -r '."aarch64-macos".shasum' /tmp/zig-master.json)"
+            echo "x86_64_macos_sha=$(jq -r '."x86_64-macos".shasum' /tmp/zig-master.json)"
+            echo "aarch64_linux_sha=$(jq -r '."aarch64-linux".shasum' /tmp/zig-master.json)"
+            echo "x86_64_linux_sha=$(jq -r '."x86_64-linux".shasum' /tmp/zig-master.json)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check if update needed
         id: check
@@ -225,10 +227,12 @@ jobs:
         run: |
           ZLS_COMMIT=$(curl -sL "https://api.github.com/repos/zigtools/zls/commits/master" | jq -r '.sha')
           ZLS_COMMIT_SHORT=$(echo "$ZLS_COMMIT" | cut -c1-10)
-          echo "zls_commit=$ZLS_COMMIT" >> "$GITHUB_OUTPUT"
-          echo "zls_commit_short=$ZLS_COMMIT_SHORT" >> "$GITHUB_OUTPUT"
           ZIG_VERSION=$(grep 'version "' Formula/zig-master.rb | head -1 | sed 's/.*version "//;s/".*//')
-          echo "zig_version=$ZIG_VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "zls_commit=$ZLS_COMMIT"
+            echo "zls_commit_short=$ZLS_COMMIT_SHORT"
+            echo "zig_version=$ZIG_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check if update needed
         id: check
