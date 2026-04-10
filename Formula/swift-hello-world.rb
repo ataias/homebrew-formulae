@@ -10,7 +10,7 @@ class SwiftHelloWorld < Formula
   end
 
   on_linux do
-    depends_on "swift" => ["6.0", :build]
+    depends_on "swift" => :build
   end
 
   def install
