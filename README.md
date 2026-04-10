@@ -13,8 +13,9 @@ brew install <formula>
 
 | Formula | Description |
 |---|---|
-| `pijul` | Distributed version control system based on a theory of patches |
 | `swift-hello-world` | Hello world program written in Swift |
+| `zig-master` | Zig programming language (master/nightly build) |
+| `zls-master` | Zig Language Server (master/nightly build) |
 
 ## CI workflows
 
@@ -37,18 +38,12 @@ Triggered when a PR receives the `pr-pull` label. Runs `brew pr-pull` which:
 3. Updates the formula's `bottle` block
 4. Pushes directly to `main` (closing the PR)
 
-**Do not click the merge button.** Adding the `pr-pull` label is the merge mechanism — it ensures bottles are published and the formula is updated atomically.
+**Do not click the merge button.** Adding the `pr-pull` label is the merge mechanism -- it ensures bottles are published and the formula is updated atomically.
 
-### `update.yml` — Auto-update pijul
+### `update.yml` — Auto-update zig-master and zls-master
 
-Runs daily at 6am UTC (and on manual dispatch). Checks crates.io for a new version of pijul and creates a PR via `brew bump-formula-pr` if one is found.
+Runs daily at 6am UTC (and on manual dispatch). The pipeline:
 
-### Typical flow for an update
-
-```
-Daily cron detects new version
-  -> update.yml creates a PR
-  -> tests.yml builds bottles on the PR
-  -> Maintainer adds "pr-pull" label
-  -> publish.yml uploads bottles and pushes to main
-```
+1. Checks ziglang.org for a new Zig nightly, tests it, then mirrors the binaries to a GitHub Release and updates the formula
+2. Checks the ZLS master branch for new commits, cross-compiles for 4 targets (aarch64/x86_64 x macOS/Linux), publishes a GitHub Release, and updates the formula
+3. ZLS is rebuilt when either its own source or the Zig version changes
