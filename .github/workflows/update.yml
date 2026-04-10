@@ -6,42 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  pijul:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
-
-      - name: Check for new version
-        id: check
-        run: |
-          CURRENT=$(brew info --json=v1 ataias/formulae/pijul | jq -r '.[0].versions.stable')
-          LATEST=$(curl -sf https://crates.io/api/v1/crates/pijul | jq -r '.crate.newest_version')
-          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
-            echo "::error::Failed to fetch latest pijul version from crates.io"
-            exit 1
-          fi
-          if [ "$CURRENT" != "$LATEST" ]; then
-            {
-              echo "current=$CURRENT"
-              echo "latest=$LATEST"
-              echo "needs_update=true"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Bump formula PR
-        if: steps.check.outputs.needs_update == 'true'
-        env:
-          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
-        run: |
-          LATEST="${{ steps.check.outputs.latest }}"
-          brew bump-formula-pr \
-            --no-browse \
-            --no-fork \
-            --version="$LATEST" \
-            --url="https://static.crates.io/crates/pijul/pijul-${LATEST}.crate" \
-            ataias/formulae/pijul
-
   zig-master-check:
     runs-on: ubuntu-latest
     outputs:
@@ -155,6 +119,7 @@ jobs:
           Date: ${DATE}
           Source: https://ziglang.org/download/" \
             --latest=false
+          gh release edit zig-master-latest --draft=false
 
       - name: Update formula
         run: |
@@ -369,6 +334,7 @@ jobs:
           Built with Zig: ${ZIG_VERSION}
           Source: https://github.com/zigtools/zls" \
             --latest=false
+          gh release edit zls-master-latest --draft=false
 
       - name: Update formula
         run: |
