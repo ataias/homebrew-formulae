@@ -479,7 +479,7 @@ jobs:
           PKG="helix-aarch64-macos"
           mkdir "$PKG"
           cp helix/install/bin/hx "$PKG/hx"
-          cp -r helix/runtime "$PKG/runtime"
+          tar -cf - -C helix --exclude='runtime/grammars/sources' runtime | tar -xf - -C "$PKG"
           tar cJf "$PKG.tar.xz" "$PKG"
 
       - name: Upload artifact
@@ -530,7 +530,7 @@ jobs:
           PKG="helix-${{ matrix.arch }}-linux"
           mkdir "$PKG"
           cp helix/install/bin/hx "$PKG/hx"
-          cp -r helix/runtime "$PKG/runtime"
+          tar -cf - -C helix --exclude='runtime/grammars/sources' runtime | tar -xf - -C "$PKG"
           tar cJf "$PKG.tar.xz" "$PKG"
 
       - name: Upload artifact
