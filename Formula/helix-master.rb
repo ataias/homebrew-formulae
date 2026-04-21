@@ -26,7 +26,7 @@ class HelixMaster < Formula
   conflicts_with "helix", because: "both install a `hx` binary"
 
   def install
-    (libexec/"bin").install "hx"
+    bin.install "hx"
     libexec.install "runtime"
     bin.env_script_all_files libexec/"bin", HELIX_RUNTIME: libexec/"runtime"
   end
