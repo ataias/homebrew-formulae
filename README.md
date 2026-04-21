@@ -16,6 +16,7 @@ brew install <formula>
 | `swift-hello-world` | Hello world program written in Swift |
 | `zig-master` | Zig programming language (master/nightly build) |
 | `zls-master` | Zig Language Server (master/nightly build) |
+| `helix-master` | Helix text editor (master/nightly build) |
 
 ## CI workflows
 
@@ -40,10 +41,11 @@ Triggered when a PR receives the `pr-pull` label. Runs `brew pr-pull` which:
 
 **Do not click the merge button.** Adding the `pr-pull` label is the merge mechanism -- it ensures bottles are published and the formula is updated atomically.
 
-### `update.yml` — Auto-update zig-master and zls-master
+### `update.yml` — Auto-update zig-master, zls-master, and helix-master
 
 Runs daily at 6am UTC (and on manual dispatch). The pipeline:
 
 1. Checks ziglang.org for a new Zig nightly, tests it, then mirrors the binaries to a GitHub Release and updates the formula
 2. Checks the ZLS master branch for new commits, cross-compiles for 4 targets (aarch64/x86_64 x macOS/Linux), publishes a GitHub Release, and updates the formula
 3. ZLS is rebuilt when either its own source or the Zig version changes
+4. Checks the Helix master branch for new commits, builds three targets (aarch64-macOS on `macos-26`; aarch64-linux and x86_64-linux inside an `ubuntu:26.04` container), publishes a GitHub Release, and updates the formula
