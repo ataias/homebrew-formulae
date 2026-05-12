@@ -3,31 +3,31 @@ class ZlsMaster < Formula
   homepage "https://github.com/zigtools/zls"
   version "0.17.0-dev.26+f2986764"
   license "MIT"
-  revision 1
+  revision 2
   # zls_commit: f298676494
-  # zig_version: 0.17.0-dev.269+ebff43698
+  # zig_version: 0.17.0-dev.292+fc1c83a36
 
   depends_on "ataias/formulae/zig-master"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest/zls-aarch64-macos.tar.xz"
-      sha256 "d2ddca73e6ad19e53bc3760335eed325682f43aa28fcb1a8635ea5aa42b2cd15"
+      sha256 "900f238adbf05b1b9f3de7b54282d4a5d47a752aa375d215cbec38fb107d850f"
     end
     if Hardware::CPU.intel?
       url "https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest/zls-x86_64-macos.tar.xz"
-      sha256 "364d7a17910c31870049f25f42b93eeee4e90ce976335e6150768bb8aadcedc1"
+      sha256 "25041e5e8126d5cb6b8e0c33ed9651ee07424839d71f391b537f7d32058eedff"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest/zls-aarch64-linux.tar.xz"
-      sha256 "52b80b0fca62cd3b57536752623ced92b468b4d9ab74d897e8916f8f81a443aa"
+      sha256 "36fdfd24aff0e5908c0418d6b471f10deeb0504cf880be5580d3a97fdc548ef5"
     end
     if Hardware::CPU.intel?
       url "https://github.com/ataias/homebrew-formulae/releases/download/zls-master-latest/zls-x86_64-linux.tar.xz"
-      sha256 "55f844b77c75c2a624b98b16c6048028f04aae964ad63aae16924d8153f722a5"
+      sha256 "43b642732e578c2a7dbd0102611a5a0fbde394a88beed589d203d2758eb31b84"
     end
   end
 
