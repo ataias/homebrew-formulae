@@ -1,28 +1,28 @@
 class ZigMaster < Formula
   desc "Zig programming language (master/nightly build)"
   homepage "https://ziglang.org/"
-  version "0.17.0-dev.420+8086ae176"
+  version "0.17.0-dev.607+456b2ec07"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-aarch64-macos-0.17.0-dev.420+8086ae176.tar.xz"
-      sha256 "7e230c59fc07b70ba50ee432481afd65f75b6386d4f74c71704d4eeca55c21c4"
+      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-aarch64-macos-0.17.0-dev.607+456b2ec07.tar.xz"
+      sha256 "4f3143fa5a9723754b9516be6f9bc23fda2743abf1144570ae67ac875f5d2a09"
     end
     if Hardware::CPU.intel?
-      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-x86_64-macos-0.17.0-dev.420+8086ae176.tar.xz"
-      sha256 "3a43e877f1a2a6e4ed7e9135da1be83334d938701b1a37ed55c8ee84a5bd29f7"
+      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-x86_64-macos-0.17.0-dev.607+456b2ec07.tar.xz"
+      sha256 "3315ff00c1d90d2472c1bef7b583e3a1adb4b9160b3452aad828b077ad7dd5fa"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-aarch64-linux-0.17.0-dev.420+8086ae176.tar.xz"
-      sha256 "d2317ee294f10dbce02dd5c7f6507de4e48ab732828a72ec78b3ba8f75e42569"
+      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-aarch64-linux-0.17.0-dev.607+456b2ec07.tar.xz"
+      sha256 "96a1465b932e23eebcd9598c82d319d316b41529b6e0ef1bcff48eaf5e3cb15a"
     end
     if Hardware::CPU.intel?
-      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-x86_64-linux-0.17.0-dev.420+8086ae176.tar.xz"
-      sha256 "a4e3053460b27e879b728e0a21e2951c53036f71e15bb456097f299653909712"
+      url "https://github.com/ataias/homebrew-formulae/releases/download/zig-master-latest/zig-x86_64-linux-0.17.0-dev.607+456b2ec07.tar.xz"
+      sha256 "19275107de7b89ec33d29b50f00997c1381c524d1e33b728472dcbd551da2e33"
     end
   end
 
