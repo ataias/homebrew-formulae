@@ -1,25 +1,25 @@
 class HelixMaster < Formula
   desc "Post-modern modal text editor (master/nightly build)"
   homepage "https://helix-editor.com/"
-  version "25.7.1+14d6bc0feb"
+  version "25.7.1+f6f3eb1fe4"
   license "MPL-2.0"
-  # helix_commit: 14d6bc0feb
+  # helix_commit: f6f3eb1fe4
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/ataias/homebrew-formulae/releases/download/helix-master-latest/helix-aarch64-macos.tar.xz"
-      sha256 "6fc2d6269755860d74b192c3246f1f85d17432c4fc154786e7beb8092be4a5db"
+      sha256 "123fed23a514aeb217c387ba647640f5472f668d864083a862749d867879e82a"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/ataias/homebrew-formulae/releases/download/helix-master-latest/helix-aarch64-linux.tar.xz"
-      sha256 "dd904848d0469034790ac9db58c369d1a4941c8b0ce084fa9c9c7c028437c0da"
+      sha256 "6eec76ef4205c1aa1ac22df01bd74c54b4dc947c2cfaaadea0bd9d7c56618fc8"
     end
     if Hardware::CPU.intel?
       url "https://github.com/ataias/homebrew-formulae/releases/download/helix-master-latest/helix-x86_64-linux.tar.xz"
-      sha256 "dfb4e3ce29eed91171c5246ec9b96d99d888e62b4d880252dc55f7efb5f2f4d4"
+      sha256 "fb5ae8c84a1e595ea02bf946f0bb053c70267d1b940b663c6db0d452a80de0e9"
     end
   end
 
